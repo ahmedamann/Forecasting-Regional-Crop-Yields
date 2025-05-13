@@ -1,0 +1,41 @@
+# Jupyter notebook checkpoints
+.ipynb_checkpoints/
+**/.ipynb_checkpoints/
+
+# macOS metadata
+.DS_Store
+**/.DS_Store
+
+# Python cache files
+__pycache__/
+**/__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+
+# VSCode settings (optional)
+.vscode/
+
+# Model files and outputs (optional)
+*.h5
+*.pt
+*.pkl
+*.joblib
+
+# Logs and outputs (optional)
+*.log
+logs/
+outputs/
+
+# Preprocessed data
+data/processed/
+
+# Outputs
+outputs/figures/
+outputs/logs/
+outputs/predictions/
