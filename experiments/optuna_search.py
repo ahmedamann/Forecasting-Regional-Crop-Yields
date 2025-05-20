@@ -54,7 +54,8 @@ def objective(
         Validation loss
     """
     # Define hyperparameter search space
-    n_layers = trial.suggest_int('n_layers', 2, 4)
+    # n_layers = trial.suggest_int('n_layers', 2, 4)
+    n_layers = 3
     hidden_dims = []
     for i in range(n_layers):
         hidden_dims.append(trial.suggest_int(f'n_units_l{i}', 32, 256))
@@ -119,7 +120,8 @@ def run_optuna_search(
     best_val_loss = study.best_value
     
     # Train best model
-    n_layers = best_params['n_layers']
+    # n_layers = best_params['n_layers']
+    n_layers = 3
     hidden_dims = [best_params[f'n_units_l{i}'] for i in range(n_layers)]
     
     best_model = create_model(
@@ -133,7 +135,9 @@ def run_optuna_search(
         train_loader=train_loader,
         val_loader=val_loader,
         learning_rate=best_params['learning_rate'],
-        device=device
+        num_epochs=200,
+        patience=50,
+        device=device,
     )
     
     # Save best model

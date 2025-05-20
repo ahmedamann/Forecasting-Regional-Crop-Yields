@@ -57,7 +57,7 @@ class YieldMLP(nn.Module):
 def create_model(
     input_dim: int,
     hidden_dims: Optional[List[int]] = None,
-    dropout_rate: float = 0.2
+    dropout_rate: float = 0.1
 ) -> YieldMLP:
     """
     Create a YieldMLP model with default or specified architecture.

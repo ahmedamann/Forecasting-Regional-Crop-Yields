@@ -55,6 +55,14 @@ def train_epoch(
         optimizer.zero_grad()
         outputs = model(features)
         loss = criterion(outputs.squeeze(), targets)
+
+        if torch.isnan(outputs).any():
+            logger.warning("NaNs detected in model outputs during training.")
+            logger.info(f"Sample outputs: {outputs[:5]}")
+        
+        if torch.isinf(outputs).any():
+            logger.warning("Infs detected in model outputs during training.")
+            logger.info(f"Sample outputs: {outputs[:5]}")
         
         # Backward pass
         loss.backward()
@@ -178,35 +186,35 @@ def save_model(model: nn.Module, path: Path):
     logger.info(f"Model saved to {path}")
 
 def main():
-    """Test model training."""
-    # Set random seed
+    """Train model using real data."""
     torch.manual_seed(RANDOM_SEED)
     np.random.seed(RANDOM_SEED)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(RANDOM_SEED)
+
+    from .dataset import load_data, create_data_loaders
     
+    # Load data
+    X, y = load_data()
+    input_dim = X.shape[1]
+
+    logger.info(f"X shape: {X.shape}, y shape: {y.shape}")
+    logger.info(f"X NaNs: {X.isna().sum().sum()}, y NaNs: {y.isna().sum()}")
+
+    assert not X.isna().any().any(), "X contains NaNs"
+    assert not y.isna().any(), "y contains NaNs"
+
     # Create model
-    input_dim = 10  # Example input dimension
     model = create_model(input_dim)
-    
-    # Create dummy data loaders
-    train_loader = DataLoader(
-        torch.utils.data.TensorDataset(
-            torch.randn(100, input_dim),
-            torch.randn(100)
-        ),
-        batch_size=32
-    )
-    val_loader = DataLoader(
-        torch.utils.data.TensorDataset(
-            torch.randn(20, input_dim),
-            torch.randn(20)
-        ),
-        batch_size=32
-    )
-    
+
+    # Create data loaders
+    train_loader, val_loader, _ = create_data_loaders(X, y)
+
     # Train model
     model, history = train_model(model, train_loader, val_loader)
-    
+
     # Save model
+    LOGS_DIR.mkdir(parents=True, exist_ok=True)
     save_model(model, LOGS_DIR / 'model.pth')
 
 if __name__ == "__main__":

@@ -71,9 +71,24 @@ def evaluate_model(
     scalers = load_scalers()
     target_scaler = scalers['target_scaler']
     
-    # Inverse transform predictions and targets
-    all_preds = target_scaler.inverse_transform(all_preds.reshape(-1, 1)).ravel()
-    all_targets = target_scaler.inverse_transform(all_targets.reshape(-1, 1)).ravel()
+    # Inverse transform
+    try:
+        all_preds = target_scaler.inverse_transform(all_preds.reshape(-1, 1)).ravel()
+        all_targets = target_scaler.inverse_transform(all_targets.reshape(-1, 1)).ravel()
+    except Exception as e:
+        logger.error("Inverse transform failed.")
+        raise e
+    
+    # 🔒 Filter NaNs AFTER inverse_transform
+    mask = ~np.isnan(all_preds) & ~np.isnan(all_targets)
+    if not np.any(mask):
+        logger.error("All predictions or targets became NaN after inverse transform.")
+        return float("nan"), float("nan"), np.array([]), np.array([])
+
+    all_preds = all_preds[mask]
+    all_targets = all_targets[mask]
+
+    logger.info(f"Evaluating on {len(all_preds)} samples (after removing NaNs)")
     
     mse = mean_squared_error(all_targets, all_preds)
     r2 = r2_score(all_targets, all_preds)
@@ -177,6 +192,10 @@ def evaluate_and_save(
     """
     # Evaluate model
     mse, r2, true_values, predictions = evaluate_model(model, test_loader, device)
+
+    if len(true_values) == 0 or len(predictions) == 0:
+        logger.error("No valid predictions available to plot or save. Skipping.")
+        return
     
     # Create metrics dictionary
     metrics = {
@@ -211,21 +230,30 @@ def evaluate_and_save(
     )
     logger.info(f"Predictions saved to {PREDICTIONS_DIR}")
 
+from .model import create_model
+
 def main():
-    """Test model evaluation."""
-    # Create dummy model and data
-    input_dim = 10
-    model = create_model(input_dim)
-    test_loader = DataLoader(
-        torch.utils.data.TensorDataset(
-            torch.randn(100, input_dim),
-            torch.randn(100)
-        ),
-        batch_size=32
-    )
-    
-    # Evaluate model
+    """Evaluate the trained model on real test data."""
+    from .dataset import load_data, create_data_loaders
+    from .config import LOGS_DIR
+
+    # Set up device
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
+    # Load data and create data loaders
+    X, y = load_data()
+    _, _, test_loader = create_data_loaders(X, y)
+
+    # Recreate model architecture
+    input_dim = X.shape[1]
+    model = create_model(input_dim).to(device)
+
+    # Load model weights
+    model_path = LOGS_DIR / 'model.pth'
+    model.load_state_dict(torch.load(model_path, map_location=device))
+    logger.info(f"Loaded model from {model_path}")
+
+    # Evaluate and save results
     evaluate_and_save(model, test_loader, device)
 
 if __name__ == "__main__":

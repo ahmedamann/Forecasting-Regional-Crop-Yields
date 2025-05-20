@@ -18,24 +18,17 @@ venv/
 ENV/
 env/
 
-# VSCode settings (optional)
+# VSCode settings
 .vscode/
 
-# Model files and outputs (optional)
+# Model files and outputs
 *.h5
 *.pt
 *.pkl
 *.joblib
 
-# Logs and outputs (optional)
+# Logs and outputs
 *.log
 logs/
-outputs/
-
-# Preprocessed data
-data/processed/
-
-# Outputs
-outputs/figures/
 outputs/logs/
-outputs/predictions/
+

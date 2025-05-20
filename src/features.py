@@ -15,48 +15,60 @@ logger = logging.getLogger(__name__)
 
 def load_processed_data() -> pd.DataFrame:
     """
-    Load all processed data files and merge them into a single DataFrame, using processed yield data as base.
+    Load all processed data files and merge them into a single DataFrame using a two-step process:
+    1. First merge all environmental data together
+    2. Then merge with yield data
+    
     Returns:
         Merged DataFrame with all features
     """
-    # Load processed yield data as base
+    # Load processed yield data
     yield_df = pd.read_csv(PROCESSED_DATA_DIR / "yield_processed.csv")
     logger.info(f"Loaded yield data with shape: {yield_df.shape}")
     
-    # Get all other processed data files (exclude yield_processed.csv and features_processed.csv)
-    processed_files = [
+    # Get all environmental data files (exclude yield_processed.csv and features_processed.csv)
+    env_files = [
         f for f in PROCESSED_DATA_DIR.glob("*_processed.csv")
         if f.name not in ["yield_processed.csv", "features_processed.csv"]
     ]
     
-    merged_data = yield_df.copy()
-    for file in processed_files:
+    # Step 1: Merge all environmental data
+    env_dfs = []
+    for file in env_files:
         try:
             df = pd.read_csv(file)
             logger.info(f"Loading {file.name} with shape: {df.shape}")
             
             # Verify required columns exist
             if 'country' not in df.columns or 'year' not in df.columns:
-                logger.warning(f"Skipping {file.name} - missing required columns")
-                continue
-                
-            # Merge with base data
-            merged_data = pd.merge(merged_data, df, on=['country', 'year'], how='left')
-            logger.info(f"Merged {file.name} - new shape: {merged_data.shape}")
+                logger.error(f"Error: {file.name} is missing required columns")
+                raise ValueError(f"{file.name} is missing required columns")
+            
+            env_dfs.append(df)
             
         except Exception as e:
             logger.error(f"Error processing {file.name}: {str(e)}")
             continue
     
-    # Drop rows with NaN values
-    initial_rows = len(merged_data)
-    merged_data = merged_data.dropna()
-    final_rows = len(merged_data)
-    logger.info(f"Dropped {initial_rows - final_rows} rows with missing values")
+    # Merge all environmental data
+    merged_env = env_dfs[0]
+    for df in env_dfs[1:]:
+        merged_env = pd.merge(merged_env, df, on=['country', 'year'], how='outer')
+    
+    # Drop rows with NaN values in environmental data
+    merged_env = merged_env.dropna()
+    logger.info(f"Merged environmental data shape: {merged_env.shape}")
+    
+    # Step 2: Merge with yield data
+    merged_data = pd.merge(yield_df, merged_env, on=['country', 'year'], how='right')
+    
+    # Drop rows where yield value is absent
+    merged_data = merged_data.dropna(subset=['target_yield', 'yield']).reset_index(drop=True)
+    logger.info(f"Final merged data shape: {merged_data.shape}")
     
     return merged_data
 
-def select_features_by_mi(X: pd.DataFrame, y: pd.Series, n_features: int = 20) -> List[str]:
+def select_features_by_mi(X: pd.DataFrame, y: pd.Series, n_features: int = 35) -> List[str]:
     """
     Select features using mutual information regression.
     
@@ -101,7 +113,7 @@ def prepare_features(df: pd.DataFrame, target_col: str = 'target_yield') -> Tupl
         Tuple of (feature DataFrame, target Series, selected feature names, scalers dictionary)
     """
     # Separate features and target
-    X = df.drop(['country', 'year', 'yield', target_col], axis=1)
+    X = df.drop(['country', 'year', target_col], axis=1)
     y = df[target_col]
     
     # Initialize scalers
