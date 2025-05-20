@@ -9,7 +9,7 @@ This project implements a machine learning system for forecasting regional crop 
 │
 ├── 📁 data/
 │   ├── raw/                # Original data files
-│   └── external/           # Final cleaned files
+│   └── processeed/         # Final cleaned files
 │
 ├── 📁 src/
 │   ├── config.py           # Configurations (paths, constants, etc.)
@@ -23,8 +23,7 @@ This project implements a machine learning system for forecasting regional crop 
 │
 ├── 📁 experiments/
 │   ├── optuna_search.py    # Hyperparameter tuning
-│   ├── run_final_model.py  # Final model training
-│   └── analyze_results.py  # Results analysis
+│   └── run_final_model.py  # Final model training
 │
 ├── 📁 notebooks/
 │   └── Code.ipynb          # Original Notebook
